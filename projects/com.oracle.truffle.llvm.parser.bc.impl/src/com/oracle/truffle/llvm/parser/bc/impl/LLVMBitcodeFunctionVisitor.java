@@ -30,6 +30,7 @@
 package com.oracle.truffle.llvm.parser.bc.impl;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -194,4 +195,15 @@ public class LLVMBitcodeFunctionVisitor implements FunctionVisitor {
         }
         return nodes;
     }
+
+    public LLVMStackFrameNuller[][] convertSlotNullers(List<InstructionBlock> blocksList, Map<InstructionBlock, FrameSlot[]> deadSlotsBlock) {
+        LLVMStackFrameNuller[][] slotNullerArray = new LLVMStackFrameNuller[deadSlotsBlock.size()][];
+
+        int index = 0;
+        for (InstructionBlock block : blocksList) {
+            slotNullerArray[index++] = createNullers(Arrays.asList(deadSlotsBlock.get(block)));
+        }
+        return slotNullerArray;
+    }
+
 }

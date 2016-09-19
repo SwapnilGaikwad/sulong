@@ -45,7 +45,6 @@ import com.oracle.truffle.llvm.nodes.base.LLVMExpressionNode;
 import com.oracle.truffle.llvm.nodes.base.LLVMNode;
 import com.oracle.truffle.llvm.nodes.base.LLVMStackFrameNuller;
 import com.oracle.truffle.llvm.nodes.impl.base.LLVMAddressNode;
-import com.oracle.truffle.llvm.nodes.impl.base.LLVMBasicBlockNode;
 import com.oracle.truffle.llvm.nodes.impl.base.LLVMContext;
 import com.oracle.truffle.llvm.nodes.impl.func.LLVMCallNode;
 import com.oracle.truffle.llvm.nodes.impl.func.LLVMFunctionStartNode;
@@ -58,6 +57,8 @@ import com.oracle.truffle.llvm.nodes.impl.others.LLVMStaticInitsBlockNode;
 import com.oracle.truffle.llvm.parser.LLVMBaseType;
 import com.oracle.truffle.llvm.parser.LLVMParserResult;
 import com.oracle.truffle.llvm.parser.base.datalayout.DataLayoutConverter;
+import com.oracle.truffle.llvm.parser.bc.impl.lifetime.LLVMBitCodeLifeTimeAnalysisVisitor;
+import com.oracle.truffle.llvm.parser.bc.impl.lifetime.LLVMBitcodeLifeTimeAnalysisResult;
 import com.oracle.truffle.llvm.parser.bc.impl.util.LLVMBitcodeTypeHelper;
 import com.oracle.truffle.llvm.parser.factories.LLVMBlockFactory;
 import com.oracle.truffle.llvm.parser.factories.LLVMFrameReadWriteFactory;
@@ -77,6 +78,7 @@ import uk.ac.man.cs.llvm.ir.model.GlobalAlias;
 import uk.ac.man.cs.llvm.ir.model.GlobalConstant;
 import uk.ac.man.cs.llvm.ir.model.GlobalValueSymbol;
 import uk.ac.man.cs.llvm.ir.model.GlobalVariable;
+import uk.ac.man.cs.llvm.ir.model.InstructionBlock;
 import uk.ac.man.cs.llvm.ir.model.Model;
 import uk.ac.man.cs.llvm.ir.model.ModelModule;
 import uk.ac.man.cs.llvm.ir.model.ModelVisitor;
@@ -178,12 +180,25 @@ public class LLVMBitcodeVisitor implements ModelVisitor {
 
         method.accept(visitor);
 
-        LLVMBasicBlockNode[] basicBlocks = visitor.getBlocks();
+        Map<InstructionBlock, FrameSlot[]> deadSlotsAtBeginBlock;
+        Map<InstructionBlock, FrameSlot[]> deadSlotsAfterEndBlock;
+        if (LLVMBaseOptionFacade.lifeTimeAnalysisEnabled()) {
+            LLVMBitcodeLifeTimeAnalysisResult lifetimeAnalysisResult = LLVMBitCodeLifeTimeAnalysisVisitor.visit(method, frames.getDescriptor(), phis.getPhiMap(name));
+            deadSlotsAtBeginBlock = lifetimeAnalysisResult.getBeginDead();
+            deadSlotsAfterEndBlock = lifetimeAnalysisResult.getEndDead();
+        } else {
+            deadSlotsAtBeginBlock = new HashMap<>();
+            deadSlotsAfterEndBlock = new HashMap<>();
+        }
+
+        LLVMStackFrameNuller[][] slotNullerBeginNodes = visitor.convertSlotNullers(method.getBlocks(), deadSlotsAtBeginBlock);
+        LLVMStackFrameNuller[][] slotNullerEndNodes = visitor.convertSlotNullers(method.getBlocks(), deadSlotsAfterEndBlock);
 
         return LLVMBlockFactory.createFunctionBlock(
                         visitor.getReturnSlot(),
                         visitor.getBlocks(),
-                        new LLVMStackFrameNuller[basicBlocks.length][0], visitor.getNullers());
+                        // slotNullerBeginNodes, slotNullerEndNodes);
+                        new LLVMStackFrameNuller[visitor.getBlocks().length][0], visitor.getNullers());
     }
 
     private List<LLVMNode> createParameters(FrameDescriptor frame, List<FunctionParameter> parameters) {
