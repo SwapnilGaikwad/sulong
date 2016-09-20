@@ -53,6 +53,7 @@ import uk.ac.man.cs.llvm.ir.model.elements.SwitchInstruction;
 import uk.ac.man.cs.llvm.ir.model.elements.SwitchOldInstruction;
 import uk.ac.man.cs.llvm.ir.model.elements.TerminatorInstruction;
 import uk.ac.man.cs.llvm.ir.model.elements.UnreachableInstruction;
+import uk.ac.man.cs.llvm.ir.model.elements.ValueInstruction;
 
 public final class LLVMBitCodeLifeTimeAnalysisVisitor {
 
@@ -66,6 +67,7 @@ public final class LLVMBitCodeLifeTimeAnalysisVisitor {
     private Map<InstructionBlock, Set<FrameSlot>> blockBeginKills = new HashMap<>();
     private final Map<Instruction, Set<FrameSlot>> ins = new HashMap<>();
     private final Map<Instruction, Set<FrameSlot>> outs = new HashMap<>();
+    private final Map<Instruction, Set<FrameSlot>> defs = new HashMap<>();
 
     private LLVMBitCodeLifeTimeAnalysisVisitor(FunctionDefinition definition, FrameDescriptor descriptor, Map<InstructionBlock, List<Phi>> phis) {
 
@@ -88,6 +90,7 @@ public final class LLVMBitCodeLifeTimeAnalysisVisitor {
         initializeInstructionInsOuts();
 
         // find definitions
+        initializeDefinitions();
 
         // perform data flow analysis algorithm
 
@@ -178,4 +181,18 @@ public final class LLVMBitCodeLifeTimeAnalysisVisitor {
         }
     }
 
+    private void initializeDefinitions() {
+        for (InstructionBlock block : blocks) {
+            for (Instruction instruction : block.getInstructions()) {
+                Set<FrameSlot> instructionDefs = new HashSet<>();
+                if (instruction instanceof ValueInstruction) {
+                    String name = ((ValueInstruction) instruction).getName();
+                    instructionDefs.add(descriptor.findOrAddFrameSlot(name));
+                } else {
+                    // No variable defition occurred for the instruction
+                }
+                defs.put(instruction, instructionDefs);
+            }
+        }
+    }
 }
