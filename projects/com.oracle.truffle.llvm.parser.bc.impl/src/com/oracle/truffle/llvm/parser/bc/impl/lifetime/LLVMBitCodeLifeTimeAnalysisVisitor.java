@@ -31,6 +31,7 @@
 package com.oracle.truffle.llvm.parser.bc.impl.lifetime;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -93,6 +94,7 @@ public final class LLVMBitCodeLifeTimeAnalysisVisitor {
         initializeDefinitions();
 
         // perform data flow analysis algorithm
+        dataFlowAnalysis();
 
         // find instruction kills
 
@@ -194,5 +196,45 @@ public final class LLVMBitCodeLifeTimeAnalysisVisitor {
                 defs.put(instruction, instructionDefs);
             }
         }
+    }
+
+    private void dataFlowAnalysis() {
+
+        List<InstructionBlock> reversedBlocks = new ArrayList<>(blocks);
+        Collections.reverse(reversedBlocks);
+        boolean changed;
+
+        do {
+            changed = false;
+            for (InstructionBlock block : reversedBlocks) {
+                List<Instruction> instructions = block.getInstructions();
+                int index = 0;
+                for (Instruction instruction : block.getInstructions()) {
+                    if (instruction instanceof TerminatorInstruction) {
+                        // for terminate instructions
+                        // out[n] = in[n+1,...] from all the successor blocks
+                        for (InstructionBlock nextBlock : successorBlocks.get(instruction)) {
+                            Instruction nextInstruction = nextBlock.getInstruction(0);
+                            Set<FrameSlot> nextInstrIns = ins.get(nextInstruction);
+                            Set<FrameSlot> currInstrOuts = outs.get(instruction);
+                            changed |= currInstrOuts.addAll(nextInstrIns);
+                        }
+                    } else {
+                        // out[n] = in[n+1]
+                        Instruction nextInstruction = instructions.get(index + 1);
+                        Set<FrameSlot> nextInstrIns = ins.get(nextInstruction);
+                        Set<FrameSlot> currInstrOuts = outs.get(instruction);
+                        changed |= currInstrOuts.addAll(nextInstrIns);
+                    }
+                    // Update in : in[n] = out[n] - def[n]
+                    Set<FrameSlot> outsWithoutDef = new HashSet<>(outs.get(instruction));
+                    List<FrameSlot> currDefs = new ArrayList<>(defs.get(instruction));
+                    outsWithoutDef.removeAll(currDefs);
+                    changed |= ins.get(instruction).addAll(outsWithoutDef);
+
+                    index++;
+                }
+            }
+        } while (changed);
     }
 }
