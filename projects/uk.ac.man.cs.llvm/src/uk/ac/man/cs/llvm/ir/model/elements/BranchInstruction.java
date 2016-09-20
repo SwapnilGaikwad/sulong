@@ -32,7 +32,7 @@ package uk.ac.man.cs.llvm.ir.model.elements;
 import uk.ac.man.cs.llvm.ir.model.InstructionBlock;
 import uk.ac.man.cs.llvm.ir.model.InstructionVisitor;
 
-public final class BranchInstruction implements VoidInstruction {
+public final class BranchInstruction implements VoidInstruction, TerminatorInstruction {
 
     private final InstructionBlock successor;
 

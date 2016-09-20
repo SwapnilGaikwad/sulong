@@ -97,17 +97,18 @@ public final class LLVMBitCodeLifeTimeAnalysisVisitor {
         dataFlowAnalysis();
 
         // find instruction kills
+        getInstructionToKill(blockEndKills);
 
         // generate begin end kills and return
+        Map<InstructionBlock, FrameSlot[]> endKills = convertInstructionKillsToBasicBlockKills();
         Map<InstructionBlock, FrameSlot[]> beginKills = new HashMap<>();
-        Map<InstructionBlock, FrameSlot[]> endKills = new HashMap<>();
         for (InstructionBlock block : blocks) {
-            // Add empty slots for each instruction block
-            beginKills.put(block, new FrameSlot[0]);
-            endKills.put(block, new FrameSlot[0]);
+            Set<FrameSlot> kills = blockBeginKills.get(block);
+            beginKills.put(block, kills.toArray(new FrameSlot[kills.size()]));
         }
 
         return new LLVMBitcodeLifeTimeAnalysisResult(beginKills, endKills);
+
     }
 
     private void initializeInstructionReads() {
@@ -237,4 +238,45 @@ public final class LLVMBitCodeLifeTimeAnalysisVisitor {
             }
         } while (changed);
     }
+
+    private void getInstructionToKill(Map<Instruction, Set<FrameSlot>> kills) {
+        for (InstructionBlock block : blocks) {
+            for (Instruction instruction : block.getInstructions()) {
+                Set<FrameSlot> inSlots = ins.get(instruction);
+                Set<FrameSlot> outSlots = outs.get(instruction);
+                Set<FrameSlot> instructionKills = new HashSet<>(inSlots);
+                instructionKills.removeAll(outSlots);
+
+                if (instruction instanceof TerminatorInstruction) {
+                    for (InstructionBlock successorBlock : successorBlocks.get(instruction)) {
+                        Instruction firstInstruction = successorBlock.getInstruction(0);
+                        Set<FrameSlot> deadAtBegin = new HashSet<>(outs.get(instruction));
+                        deadAtBegin.removeAll(ins.get(firstInstruction));
+                        blockBeginKills.put(successorBlock, deadAtBegin);
+                    }
+                    if (instruction instanceof ReturnInstruction || instruction instanceof UnreachableInstruction) {
+                        // continue; //TODO: Verify and fix, ll implementation does not have it
+                        kills.put(instruction, new HashSet<>(descriptor.getSlots()));
+                    }
+                }
+
+                kills.put(instruction, instructionKills);
+            }
+        }
+    }
+
+    private Map<InstructionBlock, FrameSlot[]> convertInstructionKillsToBasicBlockKills() {
+
+        Map<InstructionBlock, FrameSlot[]> blockEndKillsMap = new HashMap<>();
+        for (InstructionBlock block : blocks) {
+            List<FrameSlot> blockKills = new ArrayList<>();
+            for (Instruction instruction : block.getInstructions()) {
+                blockKills.addAll(blockEndKills.get(instruction));
+            }
+            FrameSlot[] blockKillsArray = blockKills.toArray(new FrameSlot[blockKills.size()]);
+            blockEndKillsMap.put(block, blockKillsArray);
+        }
+        return blockEndKillsMap;
+    }
+
 }

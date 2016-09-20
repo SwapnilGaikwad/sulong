@@ -31,7 +31,7 @@ package uk.ac.man.cs.llvm.ir.model.elements;
 
 import uk.ac.man.cs.llvm.ir.model.InstructionVisitor;
 
-public final class UnreachableInstruction implements VoidInstruction {
+public final class UnreachableInstruction implements VoidInstruction, TerminatorInstruction {
 
     private UnreachableInstruction() {
     }

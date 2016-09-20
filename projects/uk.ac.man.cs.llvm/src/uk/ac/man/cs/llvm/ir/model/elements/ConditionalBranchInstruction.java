@@ -34,7 +34,7 @@ import uk.ac.man.cs.llvm.ir.model.InstructionVisitor;
 import uk.ac.man.cs.llvm.ir.model.Symbol;
 import uk.ac.man.cs.llvm.ir.model.Symbols;
 
-public final class ConditionalBranchInstruction implements VoidInstruction {
+public final class ConditionalBranchInstruction implements VoidInstruction, TerminatorInstruction {
 
     private Symbol condition;
 

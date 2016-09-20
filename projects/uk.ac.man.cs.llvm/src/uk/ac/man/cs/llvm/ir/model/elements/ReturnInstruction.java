@@ -33,7 +33,7 @@ import uk.ac.man.cs.llvm.ir.model.InstructionVisitor;
 import uk.ac.man.cs.llvm.ir.model.Symbol;
 import uk.ac.man.cs.llvm.ir.model.Symbols;
 
-public final class ReturnInstruction implements VoidInstruction {
+public final class ReturnInstruction implements VoidInstruction, TerminatorInstruction {
 
     private Symbol value;
 
