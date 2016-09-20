@@ -32,8 +32,10 @@ package com.oracle.truffle.llvm.parser.bc.impl.lifetime;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.oracle.truffle.api.frame.FrameDescriptor;
 import com.oracle.truffle.api.frame.FrameSlot;
@@ -60,6 +62,10 @@ public final class LLVMBitCodeLifeTimeAnalysisVisitor {
 
     private Map<Instruction, List<FrameSlot>> instructionReads = new HashMap<>();
     private final Map<Instruction, List<InstructionBlock>> successorBlocks = new HashMap<>();
+    private Map<Instruction, Set<FrameSlot>> blockEndKills = new HashMap<>();
+    private Map<InstructionBlock, Set<FrameSlot>> blockBeginKills = new HashMap<>();
+    private final Map<Instruction, Set<FrameSlot>> ins = new HashMap<>();
+    private final Map<Instruction, Set<FrameSlot>> outs = new HashMap<>();
 
     private LLVMBitCodeLifeTimeAnalysisVisitor(FunctionDefinition definition, FrameDescriptor descriptor, Map<InstructionBlock, List<Phi>> phis) {
 
@@ -79,6 +85,7 @@ public final class LLVMBitCodeLifeTimeAnalysisVisitor {
         initializeInstructionReads();
 
         // find ins and outs
+        initializeInstructionInsOuts();
 
         // find definitions
 
@@ -139,6 +146,36 @@ public final class LLVMBitCodeLifeTimeAnalysisVisitor {
             throw new UnsupportedOperationException(msg);
         }
         return succBlocks;
+    }
+
+    private void initializeInstructionInsOuts() {
+
+        for (InstructionBlock block : blocks) {
+            blockBeginKills.put(block, new HashSet<>());
+            Instruction lastInstruction = null;
+            for (Instruction instruction : block.getInstructions()) {
+                lastInstruction = instruction;
+                blockEndKills.put(instruction, new HashSet<>());
+
+                Set<FrameSlot> uses = new HashSet<>(instructionReads.get(instruction));
+
+                ins.put(instruction, uses);
+                outs.put(instruction, new HashSet<>());
+            }
+
+            if (lastInstruction != null && phis.get(block) != null) {
+                // Process phi instructions
+                Set<FrameSlot> lastInstructionUses = ins.get(lastInstruction);
+                for (Phi phi : phis.get(block)) {
+                    if (phi.getValue() != null) {
+                        // Need to process phi instruction, adding variables read in local
+                        // TODO: Remove null to the value being read in the phi instruction
+                        lastInstructionUses.add(null);
+                        throw new UnsupportedOperationException();
+                    }
+                }
+            }
+        }
     }
 
 }
