@@ -30,22 +30,36 @@
 
 package com.oracle.truffle.llvm.parser.bc.impl.lifetime;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import com.oracle.truffle.api.frame.FrameDescriptor;
 import com.oracle.truffle.api.frame.FrameSlot;
+import com.oracle.truffle.llvm.parser.bc.impl.LLVMBitCodeReadVisitor;
 import com.oracle.truffle.llvm.parser.bc.impl.LLVMPhiManager.Phi;
 
 import uk.ac.man.cs.llvm.ir.model.FunctionDefinition;
 import uk.ac.man.cs.llvm.ir.model.InstructionBlock;
+import uk.ac.man.cs.llvm.ir.model.elements.BranchInstruction;
+import uk.ac.man.cs.llvm.ir.model.elements.ConditionalBranchInstruction;
+import uk.ac.man.cs.llvm.ir.model.elements.IndirectBranchInstruction;
+import uk.ac.man.cs.llvm.ir.model.elements.Instruction;
+import uk.ac.man.cs.llvm.ir.model.elements.ReturnInstruction;
+import uk.ac.man.cs.llvm.ir.model.elements.SwitchInstruction;
+import uk.ac.man.cs.llvm.ir.model.elements.SwitchOldInstruction;
+import uk.ac.man.cs.llvm.ir.model.elements.TerminatorInstruction;
+import uk.ac.man.cs.llvm.ir.model.elements.UnreachableInstruction;
 
 public final class LLVMBitCodeLifeTimeAnalysisVisitor {
 
     private final FrameDescriptor descriptor;
     private final List<InstructionBlock> blocks;
     private final Map<InstructionBlock, List<Phi>> phis;
+
+    private Map<Instruction, List<FrameSlot>> instructionReads = new HashMap<>();
+    private final Map<Instruction, List<InstructionBlock>> successorBlocks = new HashMap<>();
 
     private LLVMBitCodeLifeTimeAnalysisVisitor(FunctionDefinition definition, FrameDescriptor descriptor, Map<InstructionBlock, List<Phi>> phis) {
 
@@ -62,6 +76,7 @@ public final class LLVMBitCodeLifeTimeAnalysisVisitor {
     private LLVMBitcodeLifeTimeAnalysisResult visit() {
 
         // find instruction reads
+        initializeInstructionReads();
 
         // find ins and outs
 
@@ -81,6 +96,49 @@ public final class LLVMBitCodeLifeTimeAnalysisVisitor {
         }
 
         return new LLVMBitcodeLifeTimeAnalysisResult(beginKills, endKills);
+    }
+
+    private void initializeInstructionReads() {
+        for (InstructionBlock block : blocks) {
+            for (Instruction instruction : block.getInstructions()) {
+                if (instruction instanceof TerminatorInstruction) {
+                    successorBlocks.put(instruction, getSuccessorBlocks(instruction));
+                }
+                List<FrameSlot> currentInstructionReads = new LLVMBitCodeReadVisitor().getReads(instruction, descriptor);
+                instructionReads.put(instruction, currentInstructionReads);
+            }
+        }
+    }
+
+    private List<InstructionBlock> getSuccessorBlocks(Instruction instruction) {
+        List<InstructionBlock> succBlocks = new ArrayList<>();
+        if (instruction instanceof BranchInstruction) {
+            BranchInstruction branchInstruction = (BranchInstruction) instruction;
+            succBlocks.add(branchInstruction.getSuccessor());
+        } else if (instruction instanceof ConditionalBranchInstruction) {
+            ConditionalBranchInstruction condBranchInstruction = (ConditionalBranchInstruction) instruction;
+            if (condBranchInstruction.getTrueSuccessor() != null) {
+                succBlocks.add(condBranchInstruction.getTrueSuccessor());
+            }
+            if (condBranchInstruction.getFalseSuccessor() != null) {
+                succBlocks.add(condBranchInstruction.getFalseSuccessor());
+            }
+        } else if (instruction instanceof IndirectBranchInstruction) {
+            IndirectBranchInstruction indirectBranchInstruction = (IndirectBranchInstruction) instruction;
+            succBlocks.addAll(indirectBranchInstruction.getSuccessorBlocks());
+        } else if (instruction instanceof SwitchOldInstruction) {
+            SwitchOldInstruction switchOldInstruction = (SwitchOldInstruction) instruction;
+            succBlocks.addAll(switchOldInstruction.getCaseBlocks());
+        } else if (instruction instanceof SwitchInstruction) {
+            SwitchInstruction switchInstruction = (SwitchInstruction) instruction;
+            succBlocks.addAll(switchInstruction.getCaseBlocks());
+        } else if (instruction instanceof ReturnInstruction || instruction instanceof UnreachableInstruction) {
+            // No successor blocks so skip them
+        } else {
+            String msg = "Unhandled type of TerminatorInstruction";
+            throw new UnsupportedOperationException(msg);
+        }
+        return succBlocks;
     }
 
 }

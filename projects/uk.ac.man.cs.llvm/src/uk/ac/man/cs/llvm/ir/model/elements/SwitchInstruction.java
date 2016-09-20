@@ -29,13 +29,17 @@
  */
 package uk.ac.man.cs.llvm.ir.model.elements;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import uk.ac.man.cs.llvm.ir.model.FunctionDefinition;
 import uk.ac.man.cs.llvm.ir.model.InstructionBlock;
 import uk.ac.man.cs.llvm.ir.model.InstructionVisitor;
 import uk.ac.man.cs.llvm.ir.model.Symbol;
 import uk.ac.man.cs.llvm.ir.model.Symbols;
 
-public final class SwitchInstruction implements VoidInstruction {
+public final class SwitchInstruction implements VoidInstruction, TerminatorInstruction {
 
     private Symbol condition;
 
@@ -58,6 +62,10 @@ public final class SwitchInstruction implements VoidInstruction {
 
     public InstructionBlock getCaseBlock(int index) {
         return blocks[index];
+    }
+
+    public List<InstructionBlock> getCaseBlocks() {
+        return new ArrayList<>(Arrays.asList(blocks));
     }
 
     public int getCaseCount() {

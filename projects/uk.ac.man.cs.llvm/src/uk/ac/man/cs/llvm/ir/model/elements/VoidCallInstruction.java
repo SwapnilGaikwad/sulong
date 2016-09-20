@@ -66,6 +66,11 @@ public final class VoidCallInstruction implements Call, VoidInstruction {
     }
 
     @Override
+    public List<Symbol> getArguments() {
+        return arguments;
+    }
+
+    @Override
     public Symbol getCallTarget() {
         return target;
     }

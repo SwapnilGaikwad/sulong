@@ -29,12 +29,16 @@
  */
 package uk.ac.man.cs.llvm.ir.model.elements;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import uk.ac.man.cs.llvm.ir.model.FunctionDefinition;
 import uk.ac.man.cs.llvm.ir.model.InstructionBlock;
 import uk.ac.man.cs.llvm.ir.model.InstructionVisitor;
 import uk.ac.man.cs.llvm.ir.model.Symbol;
 
-public final class IndirectBranchInstruction implements VoidInstruction {
+public final class IndirectBranchInstruction implements VoidInstruction, TerminatorInstruction {
 
     private Symbol address;
 
@@ -59,6 +63,10 @@ public final class IndirectBranchInstruction implements VoidInstruction {
 
     public InstructionBlock getSuccessor(int index) {
         return successors[index];
+    }
+
+    public List<InstructionBlock> getSuccessorBlocks() {
+        return new ArrayList<>(Arrays.asList(successors));
     }
 
     @Override

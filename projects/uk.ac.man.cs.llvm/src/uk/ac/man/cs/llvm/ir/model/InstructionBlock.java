@@ -233,6 +233,10 @@ public final class InstructionBlock implements InstructionGenerator, ValueSymbol
         return instructions.size();
     }
 
+    public List<Instruction> getInstructions() {
+        return instructions;
+    }
+
     @Override
     public Type getType() {
         return MetaType.VOID;

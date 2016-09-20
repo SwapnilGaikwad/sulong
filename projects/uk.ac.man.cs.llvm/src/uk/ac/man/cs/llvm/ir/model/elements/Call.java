@@ -29,6 +29,8 @@
  */
 package uk.ac.man.cs.llvm.ir.model.elements;
 
+import java.util.List;
+
 import uk.ac.man.cs.llvm.ir.model.Symbol;
 import uk.ac.man.cs.llvm.ir.types.FunctionType;
 import uk.ac.man.cs.llvm.ir.types.PointerType;
@@ -39,6 +41,8 @@ public interface Call extends Instruction {
     Symbol getArgument(int index);
 
     int getArgumentCount();
+
+    List<Symbol> getArguments();
 
     Symbol getCallTarget();
 

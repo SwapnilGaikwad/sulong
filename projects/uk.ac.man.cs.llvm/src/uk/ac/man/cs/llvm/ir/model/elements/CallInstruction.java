@@ -63,6 +63,11 @@ public final class CallInstruction extends ValueInstruction implements Call {
     }
 
     @Override
+    public List<Symbol> getArguments() {
+        return arguments;
+    }
+
+    @Override
     public Symbol getCallTarget() {
         return target;
     }
