@@ -1,0 +1,3 @@
+gcc.c-torture/execute/pr41919.c
+gcc.c-torture/execute/divcmp-5.c
+gcc.c-torture/execute/pr24142.c
